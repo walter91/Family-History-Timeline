@@ -3,7 +3,7 @@
 #
 
 from jinja2 import Environment
-from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import askopenfilename, askdirectory
 import openpyxl
 
 htmlStart = """
@@ -179,7 +179,7 @@ def get_events(file, person):
     events.remove('Event')
     
     return(events)
-    
+   
 #------------------------------------------------------------------------------    
     
 def get_people(file):
@@ -229,15 +229,17 @@ def get_photo(file, person, event):
     wb = openpyxl.load_workbook(file)    
     sheet = wb.get_sheet_by_name(person)
     
-    photo = ''
+    photo = ""
+    photo = str(photo)
     
     for rowNum in range(2, sheet.get_highest_row()+1):  # skip the first row
         currentEvent = sheet.cell(row=rowNum, column = 1).value
         if currentEvent == event:
             photo = sheet.cell(row=rowNum, column=13).value
-            
-    return(photo)
-
+            if photo:
+                photos = photo.split(",")
+                return(photos)
+    return([])
 
 #------------------------------------------------------------------------------
     
@@ -281,16 +283,21 @@ def get_location(file, person, event):
 
 #------------------------------------------------------------------------------    
     
-def build_main(htmlFile, excelFile, person):
+def build_main(htmlFile, excelFile, person, buildDir):
     html_new(htmlFile, start_doc(person))
 
     events = get_events(excelFile, person)
     links = {}
     
     for ev in events:
-        newLink = person+'-'+ev+'.html'
-        html_append(htmlFile, body_doc(get_year(excelFile,person,ev)+ ' ' + ev,newLink))
-        links[ev] = newLink
+        #print(buildDir)
+        #print(person)
+        #print(ev)
+        #print(events)
+        if ev:
+            newLink = buildDir + '/' + person + '-' + ev + '.html'
+            html_append(htmlFile, body_doc(get_year(excelFile,person,ev)+ ' ' + ev,newLink))
+            links[ev] = newLink
         
     html_append(htmlFile, end_doc())
     
@@ -320,37 +327,39 @@ def build_events(links, excelFile, person):
             html_append(links[events], where_other_doc(location[2]))
         if description:
             html_append(links[events], description_doc(description))
-        if photo:
-            html_append(links[events], photo_doc(photo))
         
+        for images in photo:
+            if images:
+                html_append(links[events], photo_doc(images))
+      
         html_append(links[events], end_doc())
 
 #------------------------------------------------------------------------------
 
-def build_from_excel(file):
+def build_from_excel(file, buildDir):
     wb = openpyxl.load_workbook(file)
     people = wb.get_sheet_names()
     
-    build_index(file)    
+    build_index(file, buildDir)    
     
     for names in people:
-        build_main(names+'.html', file, names)
+        build_main(buildDir + '/' + names+'.html', file, names, buildDir)
 #------------------------------------------------------------------------------
 
-def build_index(file):
+def build_index(file, buildDir):
     wb = openpyxl.load_workbook(file)
     people = wb.get_sheet_names()
     
-    html_new('index.html', start_index_doc('Family Name...'))
+    html_new(buildDir + '\index.html', start_index_doc('Family Name...'))
     
     for names in people:
-        html_append('index.html',index_doc(names))
+        html_append(buildDir + '\index.html',index_doc(names))
         
-    html_append('index.html',end_doc())
+    html_append(buildDir + '\index.html',end_doc())
 #------------------------------------------------------------------------------
 
 if __name__ == '__main__':
     
-    
-    filename = askopenfilename()
-    build_from_excel(filename)
+    dataFile = askopenfilename()
+    buildDir = askdirectory()
+    build_from_excel(dataFile, buildDir)
